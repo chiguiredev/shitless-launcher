@@ -1,7 +1,5 @@
 package com.example.launcher
 
-import android.graphics.drawable.Drawable
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -9,14 +7,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.viewmodel.compose.viewModel
 
 @Composable
@@ -65,29 +60,29 @@ fun LauncherApp(vm: LauncherViewModel = viewModel()) {
 
 @Composable
 private fun AppRow(app: AppInfo, onClick: () -> Unit) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
             .padding(vertical = 10.dp),
     ) {
-        AppIcon(drawable = app.icon)
-        Spacer(Modifier.width(14.dp))
         Text(
             text = app.label,
             color = Color.White,
             fontSize = 16.sp,
         )
+        Text(
+            text = "${app.opens} opens · ${formatDuration(app.durationMs)}",
+            color = Color.Gray,
+            fontSize = 12.sp,
+        )
     }
 }
 
-@Composable
-private fun AppIcon(drawable: Drawable) {
-    val bitmap = remember(drawable) { drawable.toBitmap(48, 48).asImageBitmap() }
-    Image(
-        bitmap = bitmap,
-        contentDescription = null,
-        modifier = Modifier.size(40.dp),
-    )
+private fun formatDuration(ms: Long): String {
+    val totalSecs = ms / 1000
+    val hours = totalSecs / 3600
+    val minutes = (totalSecs % 3600) / 60
+    val seconds = totalSecs % 60
+    return "%02d:%02d:%02d".format(hours, minutes, seconds)
 }
