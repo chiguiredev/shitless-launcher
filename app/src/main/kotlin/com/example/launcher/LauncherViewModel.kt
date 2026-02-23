@@ -16,6 +16,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
+private const val OPENS_WEIGHT_MS = 60_000L // each open counts as 1 minute toward score
+
 class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     private val pm = app.packageManager
@@ -27,7 +29,8 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     val query: StateFlow<String> = _query.asStateFlow()
 
     private val _usage = MutableStateFlow<Map<String, Pair<Int, Long>>>(emptyMap())
-    private val _allTimeUsage = MutableStateFlow<Map<String, Long>>(emptyMap())
+    // all-time: packageName -> Pair(durationMs, opens)
+    private val _allTimeUsage = MutableStateFlow<Map<String, Pair<Long, Int>>>(emptyMap())
 
     val filtered: StateFlow<List<AppInfo>> = combine(_apps, _query, _usage, _allTimeUsage) { apps, query, usage, allTime ->
         val base = if (query.trim().isEmpty()) apps
@@ -35,7 +38,10 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         base.map { app ->
             val (opens, duration) = usage[app.packageName] ?: (0 to 0L)
             app.copy(opens = opens, durationMs = duration)
-        }.sortedByDescending { allTime[it.packageName] ?: 0L }
+        }.sortedByDescending { app ->
+            val (allTimeDuration, allTimeOpens) = allTime[app.packageName] ?: (0L to 0)
+            allTimeDuration + allTimeOpens * OPENS_WEIGHT_MS
+        }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     private var lastLaunchedPackage: String? = null
@@ -69,10 +75,16 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         _usage.value = map
 
         val allTimeAll = allTimePrefs.all
-        _allTimeUsage.value = allTimeAll
-            .filterKeys { it.startsWith("duration_") }
-            .mapKeys { it.key.removePrefix("duration_") }
-            .mapValues { (it.value as? Long) ?: 0L }
+        val allTimeMap = mutableMapOf<String, Pair<Long, Int>>()
+        for (key in allTimeAll.keys) {
+            if (key.startsWith("duration_")) {
+                val pkg = key.removePrefix("duration_")
+                val duration = (allTimeAll[key] as? Long) ?: 0L
+                val opens = allTimePrefs.getInt("opens_$pkg", 0)
+                allTimeMap[pkg] = duration to opens
+            }
+        }
+        _allTimeUsage.value = allTimeMap
     }
 
     private fun loadApps() {
@@ -108,6 +120,11 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         _usage.value = current + (packageName to (newOpens to duration))
         prefs.edit().putInt("opens_$packageName", newOpens).apply()
 
+        val (allTimeDuration, allTimeOpens) = _allTimeUsage.value[packageName] ?: (0L to 0)
+        val newAllTimeOpens = allTimeOpens + 1
+        _allTimeUsage.value = _allTimeUsage.value + (packageName to (allTimeDuration to newAllTimeOpens))
+        allTimePrefs.edit().putInt("opens_$packageName", newAllTimeOpens).apply()
+
         lastLaunchedPackage = packageName
         lastLaunchTime = System.currentTimeMillis()
 
@@ -128,8 +145,9 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         _usage.value = current + (pkg to (opens to newDuration))
         prefs.edit().putLong("duration_$pkg", newDuration).apply()
 
-        val newAllTime = (_allTimeUsage.value[pkg] ?: 0L) + elapsed
-        _allTimeUsage.value = _allTimeUsage.value + (pkg to newAllTime)
-        allTimePrefs.edit().putLong("duration_$pkg", newAllTime).apply()
+        val (allTimeDuration, allTimeOpens) = _allTimeUsage.value[pkg] ?: (0L to 0)
+        val newAllTimeDuration = allTimeDuration + elapsed
+        _allTimeUsage.value = _allTimeUsage.value + (pkg to (newAllTimeDuration to allTimeOpens))
+        allTimePrefs.edit().putLong("duration_$pkg", newAllTimeDuration).apply()
     }
 }
