@@ -84,5 +84,5 @@ private fun formatDuration(ms: Long): String {
     val hours = totalSecs / 3600
     val minutes = (totalSecs % 3600) / 60
     val seconds = totalSecs % 60
-    return "%02d:%02d:%02d".format(hours, minutes, seconds)
+    return "${hours}h ${minutes}m ${seconds}s"
 }
