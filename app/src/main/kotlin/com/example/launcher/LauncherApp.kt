@@ -34,7 +34,7 @@ fun LauncherApp(vm: LauncherViewModel = viewModel()) {
                 .systemBarsPadding()
                 .padding(horizontal = 16.dp),
         ) {
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(48.dp))
 
             OutlinedTextField(
                 value = query,
