@@ -33,7 +33,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         base.map { app ->
             val (opens, duration) = usage[app.packageName] ?: (0 to 0L)
             app.copy(opens = opens, durationMs = duration)
-        }
+        }.sortedByDescending { it.durationMs }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     private var lastLaunchedPackage: String? = null
