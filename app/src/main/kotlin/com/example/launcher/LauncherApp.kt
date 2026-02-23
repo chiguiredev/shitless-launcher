@@ -1,5 +1,10 @@
 package com.example.launcher
 
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.BatteryManager
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -8,8 +13,10 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -17,7 +24,10 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 
 @Composable
 fun LauncherApp(vm: LauncherViewModel = viewModel()) {
@@ -26,6 +36,29 @@ fun LauncherApp(vm: LauncherViewModel = viewModel()) {
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val lifecycleOwner = LocalLifecycleOwner.current
+    val context = LocalContext.current
+
+    val timeFormatter = remember { DateTimeFormatter.ofPattern("HH:mm") }
+    var time by remember { mutableStateOf(LocalTime.now().format(timeFormatter)) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            time = LocalTime.now().format(timeFormatter)
+            delay(60_000L - (System.currentTimeMillis() % 60_000L))
+        }
+    }
+
+    var battery by remember { mutableStateOf("") }
+    DisposableEffect(Unit) {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(ctx: Context, intent: Intent) {
+                val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+                val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
+                if (level >= 0 && scale > 0) battery = "${level * 100 / scale}%"
+            }
+        }
+        context.registerReceiver(receiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        onDispose { context.unregisterReceiver(receiver) }
+    }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -47,7 +80,18 @@ fun LauncherApp(vm: LauncherViewModel = viewModel()) {
                 .systemBarsPadding()
                 .padding(horizontal = 16.dp),
         ) {
-            Spacer(Modifier.height(48.dp))
+            Spacer(Modifier.height(16.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(text = time, color = Color.White, fontSize = 48.sp)
+                Text(text = battery, color = Color.White, fontSize = 18.sp)
+            }
+
+            Spacer(Modifier.height(16.dp))
 
             OutlinedTextField(
                 value = query,
