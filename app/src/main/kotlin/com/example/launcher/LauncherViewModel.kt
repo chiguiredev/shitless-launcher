@@ -20,20 +20,22 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     private val pm = app.packageManager
     private val prefs = app.getSharedPreferences("launcher_stats", Context.MODE_PRIVATE)
+    private val allTimePrefs = app.getSharedPreferences("launcher_alltime", Context.MODE_PRIVATE)
 
     private val _apps = MutableStateFlow<List<AppInfo>>(emptyList())
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
 
     private val _usage = MutableStateFlow<Map<String, Pair<Int, Long>>>(emptyMap())
+    private val _allTimeUsage = MutableStateFlow<Map<String, Long>>(emptyMap())
 
-    val filtered: StateFlow<List<AppInfo>> = combine(_apps, _query, _usage) { apps, query, usage ->
+    val filtered: StateFlow<List<AppInfo>> = combine(_apps, _query, _usage, _allTimeUsage) { apps, query, usage, allTime ->
         val base = if (query.trim().isEmpty()) apps
                    else apps.filter { it.label.lowercase().contains(query.trim().lowercase()) }
         base.map { app ->
             val (opens, duration) = usage[app.packageName] ?: (0 to 0L)
             app.copy(opens = opens, durationMs = duration)
-        }.sortedByDescending { it.durationMs }
+        }.sortedByDescending { allTime[it.packageName] ?: 0L }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     private var lastLaunchedPackage: String? = null
@@ -65,6 +67,12 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
         _usage.value = map
+
+        val allTimeAll = allTimePrefs.all
+        _allTimeUsage.value = allTimeAll
+            .filterKeys { it.startsWith("duration_") }
+            .mapKeys { it.key.removePrefix("duration_") }
+            .mapValues { (it.value as? Long) ?: 0L }
     }
 
     private fun loadApps() {
@@ -119,5 +127,9 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         val newDuration = duration + elapsed
         _usage.value = current + (pkg to (opens to newDuration))
         prefs.edit().putLong("duration_$pkg", newDuration).apply()
+
+        val newAllTime = (_allTimeUsage.value[pkg] ?: 0L) + elapsed
+        _allTimeUsage.value = _allTimeUsage.value + (pkg to newAllTime)
+        allTimePrefs.edit().putLong("duration_$pkg", newAllTime).apply()
     }
 }
