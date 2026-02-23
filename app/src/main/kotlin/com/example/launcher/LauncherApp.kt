@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.BatteryManager
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -37,6 +38,11 @@ fun LauncherApp(vm: LauncherViewModel = viewModel()) {
     val coroutineScope = rememberCoroutineScope()
     val lifecycleOwner = LocalLifecycleOwner.current
     val context = LocalContext.current
+
+    BackHandler {
+        if (query.isNotEmpty()) vm.setQuery("")
+        // else: already on launcher with no search, do nothing
+    }
 
     val timeFormatter = remember { DateTimeFormatter.ofPattern("HH:mm") }
     var time by remember { mutableStateOf(LocalTime.now().format(timeFormatter)) }
