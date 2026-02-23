@@ -16,75 +16,65 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
-private const val OPENS_WEIGHT_MS = 60_000L // each open counts as 1 minute toward score
+private const val OPEN_SCORE_MS = 60_000L // each open counts as 1 minute toward score
 
 class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     private val pm = app.packageManager
-    private val prefs = app.getSharedPreferences("launcher_stats", Context.MODE_PRIVATE)
-    private val allTimePrefs = app.getSharedPreferences("launcher_alltime", Context.MODE_PRIVATE)
+    private val dailyPrefs = app.getSharedPreferences("launcher_daily", Context.MODE_PRIVATE)
+    private val scorePrefs = app.getSharedPreferences("launcher_score", Context.MODE_PRIVATE)
 
     private val _apps = MutableStateFlow<List<AppInfo>>(emptyList())
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
 
-    private val _usage = MutableStateFlow<Map<String, Pair<Int, Long>>>(emptyMap())
-    // all-time: packageName -> Pair(durationMs, opens)
-    private val _allTimeUsage = MutableStateFlow<Map<String, Pair<Long, Int>>>(emptyMap())
+    // daily stats: packageName -> (opens, durationMs) — resets at midnight
+    private val _daily = MutableStateFlow<Map<String, Pair<Int, Long>>>(emptyMap())
+    // persistent score: packageName -> ms — never resets
+    private val _scores = MutableStateFlow<Map<String, Long>>(emptyMap())
 
-    val filtered: StateFlow<List<AppInfo>> = combine(_apps, _query, _usage, _allTimeUsage) { apps, query, usage, allTime ->
+    val filtered: StateFlow<List<AppInfo>> = combine(_apps, _query, _daily, _scores) { apps, query, daily, scores ->
         val base = if (query.trim().isEmpty()) apps
                    else apps.filter { it.label.lowercase().contains(query.trim().lowercase()) }
         base.map { app ->
-            val (opens, duration) = usage[app.packageName] ?: (0 to 0L)
+            val (opens, duration) = daily[app.packageName] ?: (0 to 0L)
             app.copy(opens = opens, durationMs = duration)
-        }.sortedByDescending { app ->
-            val (allTimeDuration, allTimeOpens) = allTime[app.packageName] ?: (0L to 0)
-            allTimeDuration + allTimeOpens * OPENS_WEIGHT_MS
-        }
+        }.sortedByDescending { scores[it.packageName] ?: 0L }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     private var lastLaunchedPackage: String? = null
     private var lastLaunchTime: Long = 0L
 
     init {
-        checkMidnightReset()
-        loadUsage()
+        checkDailyReset()
+        loadData()
         loadApps()
     }
 
-    private fun checkMidnightReset() {
+    private fun checkDailyReset() {
         val today = LocalDate.now().toString()
-        if (prefs.getString("reset_date", null) != today) {
-            prefs.edit().clear().putString("reset_date", today).apply()
-            _usage.value = emptyMap()
+        if (dailyPrefs.getString("date", null) != today) {
+            dailyPrefs.edit().clear().putString("date", today).apply()
+            _daily.value = emptyMap()
         }
     }
 
-    private fun loadUsage() {
-        val all = prefs.all
-        val map = mutableMapOf<String, Pair<Int, Long>>()
+    private fun loadData() {
+        val all = dailyPrefs.all
+        val dailyMap = mutableMapOf<String, Pair<Int, Long>>()
         for (key in all.keys) {
             if (key.startsWith("opens_")) {
                 val pkg = key.removePrefix("opens_")
-                val opens = (all[key] as? Int) ?: 0
-                val duration = prefs.getLong("duration_$pkg", 0L)
-                map[pkg] = opens to duration
+                dailyMap[pkg] = ((all[key] as? Int) ?: 0) to dailyPrefs.getLong("duration_$pkg", 0L)
             }
         }
-        _usage.value = map
+        _daily.value = dailyMap
 
-        val allTimeAll = allTimePrefs.all
-        val allTimeMap = mutableMapOf<String, Pair<Long, Int>>()
-        for (key in allTimeAll.keys) {
-            if (key.startsWith("duration_")) {
-                val pkg = key.removePrefix("duration_")
-                val duration = (allTimeAll[key] as? Long) ?: 0L
-                val opens = allTimePrefs.getInt("opens_$pkg", 0)
-                allTimeMap[pkg] = duration to opens
-            }
-        }
-        _allTimeUsage.value = allTimeMap
+        val scoresAll = scorePrefs.all
+        _scores.value = scoresAll
+            .filterKeys { it.startsWith("score_") }
+            .mapKeys { it.key.removePrefix("score_") }
+            .mapValues { (it.value as? Long) ?: 0L }
     }
 
     private fun loadApps() {
@@ -93,7 +83,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
                 addCategory(Intent.CATEGORY_LAUNCHER)
             }
             val resolved: List<ResolveInfo> = pm.queryIntentActivities(intent, 0)
-            val list = resolved
+            _apps.value = resolved
                 .map { ri ->
                     AppInfo(
                         label = ri.loadLabel(pm).toString(),
@@ -102,7 +92,6 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
                     )
                 }
                 .sortedBy { it.label.lowercase() }
-            _apps.value = list
         }
     }
 
@@ -114,16 +103,13 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         val intent = pm.getLaunchIntentForPackage(packageName) ?: return
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
-        val current = _usage.value
-        val (opens, duration) = current[packageName] ?: (0 to 0L)
-        val newOpens = opens + 1
-        _usage.value = current + (packageName to (newOpens to duration))
-        prefs.edit().putInt("opens_$packageName", newOpens).apply()
+        val (opens, duration) = _daily.value[packageName] ?: (0 to 0L)
+        _daily.value = _daily.value + (packageName to (opens + 1 to duration))
+        dailyPrefs.edit().putInt("opens_$packageName", opens + 1).apply()
 
-        val (allTimeDuration, allTimeOpens) = _allTimeUsage.value[packageName] ?: (0L to 0)
-        val newAllTimeOpens = allTimeOpens + 1
-        _allTimeUsage.value = _allTimeUsage.value + (packageName to (allTimeDuration to newAllTimeOpens))
-        allTimePrefs.edit().putInt("opens_$packageName", newAllTimeOpens).apply()
+        val newScore = (_scores.value[packageName] ?: 0L) + OPEN_SCORE_MS
+        _scores.value = _scores.value + (packageName to newScore)
+        scorePrefs.edit().putLong("score_$packageName", newScore).apply()
 
         lastLaunchedPackage = packageName
         lastLaunchTime = System.currentTimeMillis()
@@ -132,22 +118,19 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun onActivityResumed() {
-        checkMidnightReset()
+        checkDailyReset()
         val pkg = lastLaunchedPackage ?: return
         lastLaunchedPackage = null
 
         val elapsed = System.currentTimeMillis() - lastLaunchTime
         if (elapsed <= 0) return
 
-        val current = _usage.value
-        val (opens, duration) = current[pkg] ?: (0 to 0L)
-        val newDuration = duration + elapsed
-        _usage.value = current + (pkg to (opens to newDuration))
-        prefs.edit().putLong("duration_$pkg", newDuration).apply()
+        val (opens, duration) = _daily.value[pkg] ?: (0 to 0L)
+        _daily.value = _daily.value + (pkg to (opens to duration + elapsed))
+        dailyPrefs.edit().putLong("duration_$pkg", duration + elapsed).apply()
 
-        val (allTimeDuration, allTimeOpens) = _allTimeUsage.value[pkg] ?: (0L to 0)
-        val newAllTimeDuration = allTimeDuration + elapsed
-        _allTimeUsage.value = _allTimeUsage.value + (pkg to (newAllTimeDuration to allTimeOpens))
-        allTimePrefs.edit().putLong("duration_$pkg", newAllTimeDuration).apply()
+        val newScore = (_scores.value[pkg] ?: 0L) + elapsed
+        _scores.value = _scores.value + (pkg to newScore)
+        scorePrefs.edit().putLong("score_$pkg", newScore).apply()
     }
 }
