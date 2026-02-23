@@ -87,8 +87,8 @@ fun LauncherApp(vm: LauncherViewModel = viewModel()) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(text = time, color = Color.White, fontSize = 48.sp)
-                Text(text = battery, color = Color.White, fontSize = 18.sp)
+                Text(text = time, color = Color.White, fontSize = 20.sp)
+                Text(text = battery, color = Color.White, fontSize = 20.sp)
             }
 
             Spacer(Modifier.height(16.dp))
