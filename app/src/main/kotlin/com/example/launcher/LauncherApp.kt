@@ -19,9 +19,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalView
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -30,6 +27,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -80,18 +78,22 @@ fun LauncherApp(vm: LauncherViewModel = viewModel()) {
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    // Read insets once imperatively to avoid layout jumps when the notification shade is pulled.
-    val view = LocalView.current
+    // Freeze the status/nav bar insets on first valid reading so the layout never jumps
+    // when the notification shade is pulled (which triggers live inset updates).
     val density = LocalDensity.current
-    val topPadding = remember(view) {
-        val insets = ViewCompat.getRootWindowInsets(view)
-        val top = insets?.getInsets(WindowInsetsCompat.Type.statusBars())?.top ?: 0
-        with(density) { top.toDp() }
+    val statusBarInsets = WindowInsets.statusBars
+    val navBarInsets = WindowInsets.navigationBars
+    var topPadding by remember { mutableStateOf(0.dp) }
+    var bottomPadding by remember { mutableStateOf(0.dp) }
+    LaunchedEffect(Unit) {
+        topPadding = with(density) {
+            snapshotFlow { statusBarInsets.getTop(density) }.first { it > 0 }.toDp()
+        }
     }
-    val bottomPadding = remember(view) {
-        val insets = ViewCompat.getRootWindowInsets(view)
-        val bottom = insets?.getInsets(WindowInsetsCompat.Type.navigationBars())?.bottom ?: 0
-        with(density) { bottom.toDp() }
+    LaunchedEffect(Unit) {
+        bottomPadding = with(density) {
+            snapshotFlow { navBarInsets.getBottom(density) }.first().toDp()
+        }
     }
 
     Surface(
