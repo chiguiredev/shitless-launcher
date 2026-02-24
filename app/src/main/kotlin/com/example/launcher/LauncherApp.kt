@@ -71,13 +71,13 @@ fun LauncherApp(vm: LauncherViewModel = viewModel()) {
     // Freeze the status/nav bar insets on first valid reading so the layout never jumps
     // when the notification shade is pulled (which triggers live inset updates).
     val density = LocalDensity.current
-    val statusBarInsets = WindowInsets.statusBars
+    val safeDrawingInsets = WindowInsets.safeDrawing
     val navBarInsets = WindowInsets.navigationBars
     var topPadding by remember { mutableStateOf(0.dp) }
     var bottomPadding by remember { mutableStateOf(0.dp) }
     LaunchedEffect(Unit) {
         topPadding = with(density) {
-            snapshotFlow { statusBarInsets.getTop(density) }.first { it > 0 }.toDp()
+            snapshotFlow { safeDrawingInsets.getTop(density) }.first().toDp()
         }
     }
     LaunchedEffect(Unit) {
