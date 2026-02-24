@@ -19,12 +19,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -38,7 +35,6 @@ fun LauncherApp(vm: LauncherViewModel = viewModel()) {
     val query by vm.query.collectAsState()
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
-    val lifecycleOwner = LocalLifecycleOwner.current
     val context = LocalContext.current
 
     BackHandler {
@@ -68,14 +64,8 @@ fun LauncherApp(vm: LauncherViewModel = viewModel()) {
         onDispose { context.unregisterReceiver(receiver) }
     }
 
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                coroutineScope.launch { listState.scrollToItem(0) }
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    LaunchedEffect(Unit) {
+        vm.returnedFromApp.collect { listState.scrollToItem(0) }
     }
 
     // Freeze the status/nav bar insets on first valid reading so the layout never jumps

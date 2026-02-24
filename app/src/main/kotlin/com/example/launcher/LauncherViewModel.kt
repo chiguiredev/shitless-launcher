@@ -7,9 +7,12 @@ import android.content.pm.ResolveInfo
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
@@ -23,6 +26,9 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     private val pm = app.packageManager
     private val dailyPrefs = app.getSharedPreferences("launcher_daily", Context.MODE_PRIVATE)
     private val scorePrefs = app.getSharedPreferences("launcher_score", Context.MODE_PRIVATE)
+
+    private val _returnedFromApp = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val returnedFromApp: SharedFlow<Unit> = _returnedFromApp.asSharedFlow()
 
     private val _apps = MutableStateFlow<List<AppInfo>>(emptyList())
     private val _query = MutableStateFlow("")
@@ -132,5 +138,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         val newScore = (_scores.value[pkg] ?: 0L) + elapsed
         _scores.value = _scores.value + (pkg to newScore)
         scorePrefs.edit().putLong("score_$pkg", newScore).apply()
+
+        viewModelScope.launch { _returnedFromApp.emit(Unit) }
     }
 }
