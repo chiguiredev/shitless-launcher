@@ -43,7 +43,7 @@ fun LauncherApp(vm: LauncherViewModel = viewModel()) {
 
     BackHandler {
         if (query.isNotEmpty()) vm.setQuery("")
-        // else: already on launcher with no search, do nothing
+        else coroutineScope.launch { listState.scrollToItem(0) }
     }
 
     val timeFormatter = remember { DateTimeFormatter.ofPattern("HH:mm") }
