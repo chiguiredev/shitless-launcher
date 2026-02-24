@@ -18,6 +18,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -76,6 +80,20 @@ fun LauncherApp(vm: LauncherViewModel = viewModel()) {
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
+    // Read insets once imperatively to avoid layout jumps when the notification shade is pulled.
+    val view = LocalView.current
+    val density = LocalDensity.current
+    val topPadding = remember(view) {
+        val insets = ViewCompat.getRootWindowInsets(view)
+        val top = insets?.getInsets(WindowInsetsCompat.Type.statusBars())?.top ?: 0
+        with(density) { top.toDp() }
+    }
+    val bottomPadding = remember(view) {
+        val insets = ViewCompat.getRootWindowInsets(view)
+        val bottom = insets?.getInsets(WindowInsetsCompat.Type.navigationBars())?.bottom ?: 0
+        with(density) { bottom.toDp() }
+    }
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = Color.Black,
@@ -83,7 +101,7 @@ fun LauncherApp(vm: LauncherViewModel = viewModel()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .systemBarsPadding()
+                .padding(top = topPadding, bottom = bottomPadding)
                 .padding(horizontal = 16.dp),
         ) {
             Spacer(Modifier.height(16.dp))
