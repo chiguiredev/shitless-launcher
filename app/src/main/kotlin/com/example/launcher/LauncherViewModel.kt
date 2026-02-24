@@ -40,19 +40,17 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     // daily stats: packageName -> (opens, durationMs)
     private val _daily = MutableStateFlow<Map<String, Pair<Int, Long>>>(emptyMap())
-    // 30-day foreground time score: packageName -> ms
-    private val _scores = MutableStateFlow<Map<String, Long>>(emptyMap())
 
     private val _hasUsagePermission = MutableStateFlow(false)
     val hasUsagePermission: StateFlow<Boolean> = _hasUsagePermission.asStateFlow()
 
-    val filtered: StateFlow<List<AppInfo>> = combine(_apps, _query, _daily, _scores) { apps, query, daily, scores ->
+    val filtered: StateFlow<List<AppInfo>> = combine(_apps, _query, _daily) { apps, query, daily ->
         val base = if (query.trim().isEmpty()) apps
                    else apps.filter { it.label.lowercase().contains(query.trim().lowercase()) }
         base.map { app ->
             val (opens, duration) = daily[app.packageName] ?: (0 to 0L)
             app.copy(opens = opens, durationMs = duration)
-        }.sortedByDescending { scores[it.packageName] ?: 0L }
+        }.sortedByDescending { it.durationMs }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     private var lastLaunchedPackage: String? = null
@@ -82,8 +80,6 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
                 .atStartOfDay(ZoneId.systemDefault())
                 .toInstant()
                 .toEpochMilli()
-            val thirtyDaysAgo = now - 30L * 24 * 60 * 60 * 1000
-
             // Count opens from the event log using reference counting so that navigating
             // between activities within the same app doesn't inflate the count.
             // Also track last RESUMED / PAUSED timestamps to identify the one package
@@ -140,12 +136,6 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
                 if (opens > 0 || duration > 0) dailyMap[pkg] = opens to duration
             }
             _daily.value = dailyMap
-
-            // 30-day foreground time as ranking score
-            val thirtyDayStats = usageStatsManager.queryAndAggregateUsageStats(thirtyDaysAgo, now)
-            _scores.value = thirtyDayStats
-                .mapValues { it.value.totalTimeInForeground }
-                .filter { it.value > 0 }
         }
     }
 
