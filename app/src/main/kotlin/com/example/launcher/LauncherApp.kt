@@ -178,7 +178,7 @@ private fun AppRow(app: AppInfo, onClick: () -> Unit) {
             fontSize = 16.sp,
         )
         Text(
-            text = "${app.opens} opens · ${formatDuration(app.durationMs)}",
+            text = "${formatDuration(app.durationMs)} | ${app.opens}",
             color = Color.Gray,
             fontSize = 12.sp,
         )
@@ -190,5 +190,5 @@ private fun formatDuration(ms: Long): String {
     val hours = totalSecs / 3600
     val minutes = (totalSecs % 3600) / 60
     val seconds = totalSecs % 60
-    return "${hours}h ${minutes}m ${seconds}s"
+    return "%02dh %02dm %02ds".format(hours, minutes, seconds)
 }
