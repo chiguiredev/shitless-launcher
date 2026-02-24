@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.BatteryManager
+import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -33,6 +34,7 @@ import java.time.format.DateTimeFormatter
 fun LauncherApp(vm: LauncherViewModel = viewModel()) {
     val apps by vm.filtered.collectAsState()
     val query by vm.query.collectAsState()
+    val hasUsagePermission by vm.hasUsagePermission.collectAsState()
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -127,9 +129,35 @@ fun LauncherApp(vm: LauncherViewModel = viewModel()) {
 
             Spacer(Modifier.height(8.dp))
 
-            LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-                items(apps, key = { it.packageName }) { app ->
-                    AppRow(app = app, onClick = { vm.launch(app.packageName) })
+            if (hasUsagePermission) {
+                LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+                    items(apps, key = { it.packageName }) { app ->
+                        AppRow(app = app, onClick = { vm.launch(app.packageName) })
+                    }
+                }
+            } else {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "Usage access required",
+                            color = Color.White,
+                            fontSize = 16.sp,
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        Button(
+                            onClick = {
+                                context.startActivity(
+                                    Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
+                                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                )
+                            },
+                        ) {
+                            Text("Open Settings")
+                        }
+                    }
                 }
             }
         }

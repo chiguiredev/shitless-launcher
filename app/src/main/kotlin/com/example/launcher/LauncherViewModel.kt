@@ -1,6 +1,9 @@
 package com.example.launcher
 
 import android.app.Application
+import android.app.AppOpsManager
+import android.app.usage.UsageEvents
+import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ResolveInfo
@@ -18,14 +21,15 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
-
-private const val OPEN_SCORE_MS = 60_000L // each open counts as 1 minute toward score
+import java.time.ZoneId
 
 class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     private val pm = app.packageManager
-    private val dailyPrefs = app.getSharedPreferences("launcher_daily", Context.MODE_PRIVATE)
-    private val scorePrefs = app.getSharedPreferences("launcher_score", Context.MODE_PRIVATE)
+    private val usageStatsManager =
+        app.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+    private val appOpsManager =
+        app.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
 
     private val _returnedFromApp = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val returnedFromApp: SharedFlow<Unit> = _returnedFromApp.asSharedFlow()
@@ -34,10 +38,13 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
 
-    // daily stats: packageName -> (opens, durationMs) — resets at midnight
+    // daily stats: packageName -> (opens, durationMs)
     private val _daily = MutableStateFlow<Map<String, Pair<Int, Long>>>(emptyMap())
-    // persistent score: packageName -> ms — never resets
+    // 30-day foreground time score: packageName -> ms
     private val _scores = MutableStateFlow<Map<String, Long>>(emptyMap())
+
+    private val _hasUsagePermission = MutableStateFlow(false)
+    val hasUsagePermission: StateFlow<Boolean> = _hasUsagePermission.asStateFlow()
 
     val filtered: StateFlow<List<AppInfo>> = combine(_apps, _query, _daily, _scores) { apps, query, daily, scores ->
         val base = if (query.trim().isEmpty()) apps
@@ -49,38 +56,97 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     private var lastLaunchedPackage: String? = null
-    private var lastLaunchTime: Long = 0L
 
     init {
-        checkDailyReset()
-        loadData()
+        checkUsagePermission()
+        loadUsageStats()
         loadApps()
     }
 
-    private fun checkDailyReset() {
-        val today = LocalDate.now().toString()
-        if (dailyPrefs.getString("date", null) != today) {
-            dailyPrefs.edit().clear().putString("date", today).apply()
-            _daily.value = emptyMap()
-        }
+    @Suppress("DEPRECATION")
+    fun checkUsagePermission() {
+        val uid = getApplication<Application>().applicationInfo.uid
+        val mode = appOpsManager.checkOpNoThrow(
+            AppOpsManager.OPSTR_GET_USAGE_STATS,
+            uid,
+            getApplication<Application>().packageName,
+        )
+        _hasUsagePermission.value = (mode == AppOpsManager.MODE_ALLOWED)
     }
 
-    private fun loadData() {
-        val all = dailyPrefs.all
-        val dailyMap = mutableMapOf<String, Pair<Int, Long>>()
-        for (key in all.keys) {
-            if (key.startsWith("opens_")) {
-                val pkg = key.removePrefix("opens_")
-                dailyMap[pkg] = ((all[key] as? Int) ?: 0) to dailyPrefs.getLong("duration_$pkg", 0L)
-            }
-        }
-        _daily.value = dailyMap
+    fun loadUsageStats() {
+        if (!_hasUsagePermission.value) return
+        viewModelScope.launch(Dispatchers.IO) {
+            val now = System.currentTimeMillis()
+            val startOfDay = LocalDate.now()
+                .atStartOfDay(ZoneId.systemDefault())
+                .toInstant()
+                .toEpochMilli()
+            val thirtyDaysAgo = now - 30L * 24 * 60 * 60 * 1000
 
-        val scoresAll = scorePrefs.all
-        _scores.value = scoresAll
-            .filterKeys { it.startsWith("score_") }
-            .mapKeys { it.key.removePrefix("score_") }
-            .mapValues { (it.value as? Long) ?: 0L }
+            // Count opens from the event log using reference counting so that navigating
+            // between activities within the same app doesn't inflate the count.
+            // Also track last RESUMED / PAUSED timestamps to identify the one package
+            // currently in the foreground (needed to add its live session below).
+            //
+            // We do NOT compute duration from events: PAUSED events are not guaranteed to
+            // appear in the log (especially for home launchers and system apps), which causes
+            // runaway over-counting. We also miss carry-over sessions that started before
+            // midnight. The system aggregation handles both correctly.
+            val opensMap = mutableMapOf<String, Int>()
+            val activeCount = mutableMapOf<String, Int>()
+            val lastResumedAt = mutableMapOf<String, Long>()
+            val lastPausedAt = mutableMapOf<String, Long>()
+
+            val events = usageStatsManager.queryEvents(startOfDay, now)
+            val event = UsageEvents.Event()
+            while (events.hasNextEvent()) {
+                events.getNextEvent(event)
+                val pkg = event.packageName
+                when (event.eventType) {
+                    UsageEvents.Event.ACTIVITY_RESUMED -> {
+                        val count = activeCount.getOrDefault(pkg, 0)
+                        if (count == 0) opensMap[pkg] = (opensMap[pkg] ?: 0) + 1
+                        activeCount[pkg] = count + 1
+                        lastResumedAt[pkg] = event.timeStamp
+                    }
+                    UsageEvents.Event.ACTIVITY_PAUSED -> {
+                        val count = activeCount.getOrDefault(pkg, 0)
+                        if (count > 0) activeCount[pkg] = count - 1
+                        lastPausedAt[pkg] = event.timeStamp
+                    }
+                }
+            }
+
+            // The currently active package is the one whose last RESUMED is more recent
+            // than its last PAUSED. Only one app can be in the foreground at a time, so
+            // take the candidate with the latest RESUMED timestamp.
+            val activePackage = lastResumedAt
+                .filter { (pkg, resumedTs) -> resumedTs > (lastPausedAt[pkg] ?: 0L) }
+                .maxByOrNull { it.value }
+                ?.key
+
+            // Use system aggregation for all completed-session durations.
+            // Add the live (unfinished) session only for the one currently-active package.
+            val todayStats = usageStatsManager.queryAndAggregateUsageStats(startOfDay, now)
+
+            val dailyMap = mutableMapOf<String, Pair<Int, Long>>()
+            for (pkg in (opensMap.keys + todayStats.keys).toSet()) {
+                val opens = opensMap[pkg] ?: 0
+                var duration = todayStats[pkg]?.totalTimeInForeground ?: 0L
+                if (pkg == activePackage) {
+                    duration += now - (lastResumedAt[pkg] ?: now)
+                }
+                if (opens > 0 || duration > 0) dailyMap[pkg] = opens to duration
+            }
+            _daily.value = dailyMap
+
+            // 30-day foreground time as ranking score
+            val thirtyDayStats = usageStatsManager.queryAndAggregateUsageStats(thirtyDaysAgo, now)
+            _scores.value = thirtyDayStats
+                .mapValues { it.value.totalTimeInForeground }
+                .filter { it.value > 0 }
+        }
     }
 
     private fun loadApps() {
@@ -108,37 +174,15 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     fun launch(packageName: String) {
         val intent = pm.getLaunchIntentForPackage(packageName) ?: return
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-
-        val (opens, duration) = _daily.value[packageName] ?: (0 to 0L)
-        _daily.value = _daily.value + (packageName to (opens + 1 to duration))
-        dailyPrefs.edit().putInt("opens_$packageName", opens + 1).apply()
-
-        val newScore = (_scores.value[packageName] ?: 0L) + OPEN_SCORE_MS
-        _scores.value = _scores.value + (packageName to newScore)
-        scorePrefs.edit().putLong("score_$packageName", newScore).apply()
-
         lastLaunchedPackage = packageName
-        lastLaunchTime = System.currentTimeMillis()
-
         getApplication<Application>().startActivity(intent)
     }
 
     fun onActivityResumed() {
-        checkDailyReset()
+        checkUsagePermission()
+        loadUsageStats()
         val pkg = lastLaunchedPackage ?: return
         lastLaunchedPackage = null
-
-        val elapsed = System.currentTimeMillis() - lastLaunchTime
-        if (elapsed <= 0) return
-
-        val (opens, duration) = _daily.value[pkg] ?: (0 to 0L)
-        _daily.value = _daily.value + (pkg to (opens to duration + elapsed))
-        dailyPrefs.edit().putLong("duration_$pkg", duration + elapsed).apply()
-
-        val newScore = (_scores.value[pkg] ?: 0L) + elapsed
-        _scores.value = _scores.value + (pkg to newScore)
-        scorePrefs.edit().putLong("score_$pkg", newScore).apply()
-
         viewModelScope.launch { _returnedFromApp.emit(Unit) }
     }
 }
