@@ -35,6 +35,7 @@ fun LauncherApp(vm: LauncherViewModel = viewModel()) {
     val apps by vm.filtered.collectAsState()
     val query by vm.query.collectAsState()
     val hasUsagePermission by vm.hasUsagePermission.collectAsState()
+    val totalDurationMs by vm.totalDurationMs.collectAsState()
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -130,6 +131,12 @@ fun LauncherApp(vm: LauncherViewModel = viewModel()) {
             Spacer(Modifier.height(8.dp))
 
             if (hasUsagePermission) {
+                Text(
+                    text = "Total time: ${formatDuration(totalDurationMs)}",
+                    color = Color.White,
+                    fontSize = 20.sp,
+                )
+                Spacer(Modifier.height(8.dp))
                 LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
                     items(apps, key = { it.packageName }) { app ->
                         AppRow(app = app, onClick = { vm.launch(app.packageName) })

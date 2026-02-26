@@ -6,11 +6,12 @@ MinLauncher is a minimalist Android home screen replacement. It shows all your i
 
 ## Screen Layout
 
-The screen has three sections stacked vertically:
+The screen has four sections stacked vertically:
 
 1. **Header row** — time on the left, battery percentage on the right
 2. **Search bar** — text field for filtering the app list
-3. **App list** — scrollable list of every installed app
+3. **Total screen time** — sum of all app usage today
+4. **App list** — scrollable list of every installed app
 
 ---
 
@@ -57,6 +58,7 @@ The screen has three sections stacked vertically:
 - Screen time shown in the app list reflects today only
 - Stats reset automatically at midnight
 - The sort order updates throughout the day as you use apps
+- Total screen time across all apps is shown above the app list
 
 ---
 

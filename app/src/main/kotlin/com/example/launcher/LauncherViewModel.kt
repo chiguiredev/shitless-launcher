@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -43,6 +44,10 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     private val _hasUsagePermission = MutableStateFlow(false)
     val hasUsagePermission: StateFlow<Boolean> = _hasUsagePermission.asStateFlow()
+
+    val totalDurationMs: StateFlow<Long> = _daily
+        .map { daily -> daily.values.sumOf { it.second } }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, 0L)
 
     val filtered: StateFlow<List<AppInfo>> = combine(_apps, _query, _daily) { apps, query, daily ->
         val base = if (query.trim().isEmpty()) apps
