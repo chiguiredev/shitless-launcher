@@ -48,8 +48,8 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         val base = if (query.trim().isEmpty()) apps
                    else apps.filter { it.label.lowercase().contains(query.trim().lowercase()) }
         base.map { app ->
-            val (opens, duration) = daily[app.packageName] ?: (0 to 0L)
-            app.copy(opens = opens, durationMs = duration)
+            val duration = daily[app.packageName]?.second ?: 0L
+            app.copy(durationMs = duration)
         }.sortedByDescending { it.durationMs }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 

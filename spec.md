@@ -23,9 +23,7 @@ The screen has three sections stacked vertically:
 - Each row shows:
   - App icon
   - App name
-  - Time used today in `HH:MM:SS` format
-  - Number of times opened today
-  - Example row: `00h 12m 03s | 4`
+  - Time used today in `HH:MM:SS` format (e.g. `00h 12m 03s`)
 - When you return to the launcher from an app, the list automatically scrolls back to the top
 
 ### Launching an App
@@ -56,7 +54,7 @@ The screen has three sections stacked vertically:
 
 ### Daily Usage Stats
 
-- Screen time and open counts shown in the app list reflect today only
+- Screen time shown in the app list reflects today only
 - Stats reset automatically at midnight
 - The sort order updates throughout the day as you use apps
 

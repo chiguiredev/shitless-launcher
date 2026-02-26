@@ -178,7 +178,7 @@ private fun AppRow(app: AppInfo, onClick: () -> Unit) {
             fontSize = 16.sp,
         )
         Text(
-            text = "${formatDuration(app.durationMs)} | ${app.opens}",
+            text = formatDuration(app.durationMs),
             color = Color.Gray,
             fontSize = 12.sp,
         )
