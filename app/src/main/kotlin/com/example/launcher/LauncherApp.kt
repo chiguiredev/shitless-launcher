@@ -128,7 +128,7 @@ fun LauncherApp(vm: LauncherViewModel = viewModel()) {
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(16.dp))
 
             if (hasUsagePermission) {
                 Text(
