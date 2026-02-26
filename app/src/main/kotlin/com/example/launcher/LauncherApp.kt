@@ -17,12 +17,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -91,52 +89,52 @@ fun LauncherApp(vm: LauncherViewModel = viewModel()) {
 
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = Color.Black,
+        color = DesignTokens.Colors.Background,
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(top = topPadding, bottom = bottomPadding)
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = DesignTokens.Spacing.Large),
         ) {
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(DesignTokens.Spacing.Large))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(text = time, color = Color.White, fontSize = 20.sp)
-                Text(text = battery, color = Color.White, fontSize = 20.sp)
+                Text(text = time, color = DesignTokens.Colors.Primary, fontSize = DesignTokens.FontSize.Large)
+                Text(text = battery, color = DesignTokens.Colors.Primary, fontSize = DesignTokens.FontSize.Large)
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(DesignTokens.Spacing.Large))
 
             OutlinedTextField(
                 value = query,
                 onValueChange = vm::setQuery,
-                placeholder = { Text("Search apps", color = Color.Gray) },
+                placeholder = { Text("Search apps", color = DesignTokens.Colors.Secondary) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
-                    focusedBorderColor = Color.DarkGray,
-                    unfocusedBorderColor = Color.DarkGray,
-                    cursorColor = Color.White,
+                    focusedTextColor = DesignTokens.Colors.Primary,
+                    unfocusedTextColor = DesignTokens.Colors.Primary,
+                    focusedBorderColor = DesignTokens.Colors.Border,
+                    unfocusedBorderColor = DesignTokens.Colors.Border,
+                    cursorColor = DesignTokens.Colors.Primary,
                 ),
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(DesignTokens.Spacing.Large))
 
             if (hasUsagePermission) {
                 Text(
                     text = "Total time: ${formatDuration(totalDurationMs)}",
-                    color = Color.White,
-                    fontSize = 20.sp,
+                    color = DesignTokens.Colors.Primary,
+                    fontSize = DesignTokens.FontSize.Large,
                 )
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(DesignTokens.Spacing.Small))
                 LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
                     items(apps, key = { it.packageName }) { app ->
                         AppRow(app = app, onClick = { vm.launch(app.packageName) })
@@ -150,10 +148,10 @@ fun LauncherApp(vm: LauncherViewModel = viewModel()) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             text = "Usage access required",
-                            color = Color.White,
-                            fontSize = 16.sp,
+                            color = DesignTokens.Colors.Primary,
+                            fontSize = DesignTokens.FontSize.Medium,
                         )
-                        Spacer(Modifier.height(16.dp))
+                        Spacer(Modifier.height(DesignTokens.Spacing.Large))
                         Button(
                             onClick = {
                                 context.startActivity(
@@ -177,17 +175,17 @@ private fun AppRow(app: AppInfo, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(vertical = 10.dp),
+            .padding(vertical = DesignTokens.Spacing.Medium),
     ) {
         Text(
             text = app.label,
-            color = Color.White,
-            fontSize = 16.sp,
+            color = DesignTokens.Colors.Primary,
+            fontSize = DesignTokens.FontSize.Medium,
         )
         Text(
             text = formatDuration(app.durationMs),
-            color = Color.Gray,
-            fontSize = 12.sp,
+            color = DesignTokens.Colors.Secondary,
+            fontSize = DesignTokens.FontSize.Small,
         )
     }
 }
