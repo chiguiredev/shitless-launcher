@@ -24,11 +24,12 @@ Requires Android SDK with `ANDROID_HOME` set (or `local.properties` with `sdk.di
 
 ```
 app/src/main/
-  kotlin/com/example/launcher/
+  kotlin/com/shitless/launcher/
     HomeActivity.kt       — entry point, sets Compose content, tracks usage on resume
     LauncherApp.kt        — root Composable + AppRow (shows opens + duration stats)
     LauncherViewModel.kt  — loads apps, search filter, usage tracking, scoring, launch
     AppInfo.kt            — data class (label, packageName, icon, opens, durationMs)
+    DesignTokens.kt       — shared design constants (colors, spacing, typography)
   AndroidManifest.xml     — declares HOME + DEFAULT + QUERY_ALL_PACKAGES permission
   res/values/
     themes.xml            — fullscreen black theme, transparent system bars
