@@ -84,7 +84,7 @@ fun LauncherApp(vm: LauncherViewModel = viewModel()) {
         val receiver =
             object : BroadcastReceiver() {
                 override fun onReceive(
-                    ctx: Context,
+                    context: Context,
                     intent: Intent,
                 ) {
                     val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
@@ -100,8 +100,6 @@ fun LauncherApp(vm: LauncherViewModel = viewModel()) {
         vm.returnedFromApp.collect { listState.scrollToItem(0) }
     }
 
-    // Freeze the status/nav bar insets on first valid reading so the layout never jumps
-    // when the notification shade is pulled (which triggers live inset updates).
     val density = LocalDensity.current
     val safeDrawingInsets = WindowInsets.safeDrawing
     val navBarInsets = WindowInsets.navigationBars

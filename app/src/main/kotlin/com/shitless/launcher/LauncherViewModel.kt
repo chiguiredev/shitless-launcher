@@ -38,15 +38,14 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
 
-    // daily stats: packageName -> (opens, durationMs)
-    private val daily = MutableStateFlow<Map<String, Pair<Int, Long>>>(emptyMap())
+    private val daily = MutableStateFlow<Map<String, Long>>(emptyMap())
 
     private val _hasUsagePermission = MutableStateFlow(false)
     val hasUsagePermission: StateFlow<Boolean> = _hasUsagePermission.asStateFlow()
 
     val totalDurationMs: StateFlow<Long> =
         daily
-            .map { d -> d.values.sumOf { it.second } }
+            .map { stats -> stats.values.sum() }
             .stateIn(viewModelScope, SharingStarted.Eagerly, 0L)
 
     val filtered: StateFlow<List<AppInfo>> =
@@ -58,12 +57,11 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
                     appList.filter { it.label.lowercase().contains(query.trim().lowercase()) }
                 }
             base.map { app ->
-                val duration = dailyMap[app.packageName]?.second ?: 0L
-                app.copy(durationMs = duration)
+                app.copy(durationMs = dailyMap[app.packageName] ?: 0L)
             }.sortedByDescending { it.durationMs }
         }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
-    private var lastLaunchedPackage: String? = null
+    private var appWasLaunched = false
 
     init {
         checkUsagePermission()
@@ -92,17 +90,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
                     .atStartOfDay(ZoneId.systemDefault())
                     .toInstant()
                     .toEpochMilli()
-            // Count opens from the event log using reference counting so that navigating
-            // between activities within the same app doesn't inflate the count.
-            // Also track last RESUMED / PAUSED timestamps to identify the one package
-            // currently in the foreground (needed to add its live session below).
-            //
-            // We do NOT compute duration from events: PAUSED events are not guaranteed to
-            // appear in the log (especially for home launchers and system apps), which causes
-            // runaway over-counting. We also miss carry-over sessions that started before
-            // midnight. The system aggregation handles both correctly.
-            val opensMap = mutableMapOf<String, Int>()
-            val activeCount = mutableMapOf<String, Int>()
+
             val lastResumedAt = mutableMapOf<String, Long>()
             val lastPausedAt = mutableMapOf<String, Long>()
 
@@ -112,41 +100,26 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
                 events.getNextEvent(event)
                 val pkg = event.packageName
                 when (event.eventType) {
-                    UsageEvents.Event.ACTIVITY_RESUMED -> {
-                        val count = activeCount.getOrDefault(pkg, 0)
-                        if (count == 0) opensMap[pkg] = (opensMap[pkg] ?: 0) + 1
-                        activeCount[pkg] = count + 1
-                        lastResumedAt[pkg] = event.timeStamp
-                    }
-                    UsageEvents.Event.ACTIVITY_PAUSED -> {
-                        val count = activeCount.getOrDefault(pkg, 0)
-                        if (count > 0) activeCount[pkg] = count - 1
-                        lastPausedAt[pkg] = event.timeStamp
-                    }
+                    UsageEvents.Event.ACTIVITY_RESUMED -> lastResumedAt[pkg] = event.timeStamp
+                    UsageEvents.Event.ACTIVITY_PAUSED -> lastPausedAt[pkg] = event.timeStamp
                 }
             }
 
-            // The currently active package is the one whose last RESUMED is more recent
-            // than its last PAUSED. Only one app can be in the foreground at a time, so
-            // take the candidate with the latest RESUMED timestamp.
             val activePackage =
                 lastResumedAt
-                    .filter { (pkg, resumedTs) -> resumedTs > (lastPausedAt[pkg] ?: 0L) }
+                    .filter { (pkg, resumedAt) -> resumedAt > (lastPausedAt[pkg] ?: 0L) }
                     .maxByOrNull { it.value }
                     ?.key
 
-            // Use system aggregation for all completed-session durations.
-            // Add the live (unfinished) session only for the one currently-active package.
             val todayStats = usageStatsManager.queryAndAggregateUsageStats(startOfDay, now)
 
-            val dailyMap = mutableMapOf<String, Pair<Int, Long>>()
-            for (pkg in (opensMap.keys + todayStats.keys).toSet()) {
-                val opens = opensMap[pkg] ?: 0
+            val dailyMap = mutableMapOf<String, Long>()
+            for (pkg in todayStats.keys) {
                 var duration = todayStats[pkg]?.totalTimeInForeground ?: 0L
                 if (pkg == activePackage) {
                     duration += now - (lastResumedAt[pkg] ?: now)
                 }
-                if (opens > 0 || duration > 0) dailyMap[pkg] = opens to duration
+                if (duration > 0) dailyMap[pkg] = duration
             }
             daily.value = dailyMap
         }
@@ -161,33 +134,32 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
             val resolved: List<ResolveInfo> = pm.queryIntentActivities(intent, 0)
             apps.value =
                 resolved
-                    .map { ri ->
+                    .map { resolveInfo ->
                         AppInfo(
-                            label = ri.loadLabel(pm).toString(),
-                            packageName = ri.activityInfo.packageName,
-                            icon = ri.loadIcon(pm),
+                            label = resolveInfo.loadLabel(pm).toString(),
+                            packageName = resolveInfo.activityInfo.packageName,
                         )
                     }
                     .sortedBy { it.label.lowercase() }
         }
     }
 
-    fun setQuery(q: String) {
-        _query.value = q
+    fun setQuery(newQuery: String) {
+        _query.value = newQuery
     }
 
     fun launch(packageName: String) {
         val intent = pm.getLaunchIntentForPackage(packageName) ?: return
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        lastLaunchedPackage = packageName
+        appWasLaunched = true
         getApplication<Application>().startActivity(intent)
     }
 
     fun onActivityResumed() {
         checkUsagePermission()
         loadUsageStats()
-        val pkg = lastLaunchedPackage ?: return
-        lastLaunchedPackage = null
+        if (!appWasLaunched) return
+        appWasLaunched = false
         viewModelScope.launch { _returnedFromApp.emit(Unit) }
     }
 }
