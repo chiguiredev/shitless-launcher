@@ -1,4 +1,4 @@
-# MinLauncher
+# Shitless Launcher
 
 Minimalist Android launcher. Searchable app list on a plain black screen.
 
@@ -42,7 +42,7 @@ To uninstall: `adb uninstall com.example.launcher`
 ## Set as Default Launcher
 
 After installing, press **Home**. Android will prompt you to pick a home app —
-choose **MinLauncher → Always**.
+choose **Shitless Launcher → Always**.
 
 To revert: *Settings → Apps → Default apps → Home app*.
 

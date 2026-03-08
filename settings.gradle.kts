@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "MinLauncher"
+rootProject.name = "ShitlessLauncher"
 include(":app")

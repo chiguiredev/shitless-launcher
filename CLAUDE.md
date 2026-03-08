@@ -32,7 +32,7 @@ app/src/main/
   AndroidManifest.xml     — declares HOME + DEFAULT + QUERY_ALL_PACKAGES permission
   res/values/
     themes.xml            — fullscreen black theme, transparent system bars
-    strings.xml           — app_name = "MinLauncher"
+    strings.xml           — app_name = "Shitless Launcher"
 proguard-rules.pro        — keep annotations, suppress kotlinx warnings
 setup-environment.md      — macOS SDK setup guide
 README.md                 — user-facing documentation

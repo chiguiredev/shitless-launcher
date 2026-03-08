@@ -7,7 +7,7 @@
 
     <application
         android:label="@string/app_name"
-        android:theme="@style/Theme.MinLauncher">
+        android:theme="@style/Theme.ShitlessLauncher">
 
         <activity
             android:name=".HomeActivity"

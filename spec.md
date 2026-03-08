@@ -1,6 +1,6 @@
-# MinLauncher — Feature Spec
+# Shitless Launcher — Feature Spec
 
-MinLauncher is a minimalist Android home screen replacement. It shows all your installed apps in a single scrollable list, ordered by how much you've used them today. No widgets, no folders, no distractions.
+Shitless Launcher is a minimalist Android home screen replacement. It shows all your installed apps in a single scrollable list, ordered by how much you've used them today. No widgets, no folders, no distractions.
 
 ---
 
@@ -66,7 +66,7 @@ The screen has four sections stacked vertically:
 
 ### Usage Access (required)
 
-MinLauncher needs the **Usage Access** permission to read how long you've spent in each app.
+Shitless Launcher needs the **Usage Access** permission to read how long you've spent in each app.
 
 - If this permission hasn't been granted, the app list is replaced with a prompt: *"Usage access required"*
 - Tap **Open Settings** to go to the Usage Access settings screen and grant permission
