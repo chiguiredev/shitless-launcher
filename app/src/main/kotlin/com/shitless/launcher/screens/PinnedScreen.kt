@@ -80,7 +80,7 @@ fun PinnedScreen(
                 )
             }
         } else {
-            LazyColumn(state = lazyListState, modifier = Modifier.weight(1f).fillMaxWidth()) {
+            LazyColumn(state = lazyListState, modifier = Modifier.weight(1f).fillMaxWidth(), reverseLayout = true) {
                 items(apps, key = { it.packageName }) { app ->
                     ReorderableItem(reorderState, key = app.packageName) {
                         Row(

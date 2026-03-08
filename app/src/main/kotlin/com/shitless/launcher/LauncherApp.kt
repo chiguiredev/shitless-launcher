@@ -139,7 +139,10 @@ fun LauncherApp(vm: LauncherViewModel = viewModel()) {
                 onSearchClick = { showSearch = true },
                 onPhoneClick = {
                     context.startActivity(
-                        Intent(Intent.ACTION_DIAL).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                        Intent(Intent.ACTION_VIEW).apply {
+                            type = "vnd.android.cursor.dir/contact"
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        },
                     )
                 },
                 onCameraClick = {
