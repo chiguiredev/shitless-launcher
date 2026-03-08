@@ -67,17 +67,17 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     private val pinnedPrefs = app.getSharedPreferences("launcher_pinned", Context.MODE_PRIVATE)
 
     private val _pinnedPackages =
-        MutableStateFlow<Set<String>>(
-            pinnedPrefs.getStringSet("pinned", emptySet()) ?: emptySet(),
+        MutableStateFlow<List<String>>(
+            pinnedPrefs.getString("pinned_ordered", null)
+                ?.split(",")?.filter { it.isNotEmpty() }
+                ?: (pinnedPrefs.getStringSet("pinned", emptySet()) ?: emptySet()).toList(),
         )
-    val pinnedPackages: StateFlow<Set<String>> = _pinnedPackages.asStateFlow()
+    val pinnedPackages: StateFlow<List<String>> = _pinnedPackages.asStateFlow()
 
     val pinnedApps: StateFlow<List<AppInfo>> =
         combine(apps, _pinnedPackages, daily) { appList, pinned, dailyMap ->
-            appList
-                .filter { it.packageName in pinned }
-                .map { app -> app.copy(durationMs = dailyMap[app.packageName] ?: 0L) }
-                .sortedBy { it.label.lowercase() }
+            val appMap = appList.associateBy { it.packageName }
+            pinned.mapNotNull { pkg -> appMap[pkg]?.copy(durationMs = dailyMap[pkg] ?: 0L) }
         }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     private var appWasLaunched = false
@@ -168,10 +168,20 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun togglePin(packageName: String) {
-        val current = _pinnedPackages.value.toMutableSet()
+        val current = _pinnedPackages.value.toMutableList()
         if (packageName in current) current.remove(packageName) else current.add(packageName)
         _pinnedPackages.value = current
-        pinnedPrefs.edit().putStringSet("pinned", current).apply()
+        pinnedPrefs.edit().putString("pinned_ordered", current.joinToString(",")).apply()
+    }
+
+    fun reorderPinnedApps(
+        fromIndex: Int,
+        toIndex: Int,
+    ) {
+        val current = _pinnedPackages.value.toMutableList()
+        current.add(toIndex, current.removeAt(fromIndex))
+        _pinnedPackages.value = current
+        pinnedPrefs.edit().putString("pinned_ordered", current.joinToString(",")).apply()
     }
 
     fun launch(packageName: String) {

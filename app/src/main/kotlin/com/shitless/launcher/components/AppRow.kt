@@ -18,10 +18,11 @@ fun AppRow(
     onClick: () -> Unit,
     onLongClick: () -> Unit = {},
     isPinned: Boolean = false,
+    modifier: Modifier = Modifier,
 ) {
     Column(
         modifier =
-            Modifier
+            modifier
                 .fillMaxWidth()
                 .combinedClickable(onClick = onClick, onLongClick = onLongClick)
                 .padding(vertical = DesignTokens.Spacing.Medium),

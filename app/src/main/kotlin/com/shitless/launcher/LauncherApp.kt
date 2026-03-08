@@ -137,6 +137,7 @@ fun LauncherApp(vm: LauncherViewModel = viewModel()) {
                 onAppClick = { vm.launch(it) },
                 onAppLongClick = { vm.togglePin(it) },
                 onSearchClick = { showSearch = true },
+                onReorder = { from, to -> vm.reorderPinnedApps(from, to) },
                 time = time,
                 battery = battery,
                 topPadding = topPadding,

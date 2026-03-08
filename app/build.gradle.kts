@@ -68,8 +68,26 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.material.icons.core)
+    implementation(libs.reorderable)
 }
 
 tasks.named("preBuild") {
     dependsOn("ktlintCheck")
+}
+
+val appId = "com.shitless.launcher"
+val mainActivity = "$appId/.HomeActivity"
+
+tasks.register("deployDebug") {
+    dependsOn("installDebug")
+    doLast {
+        exec { commandLine("adb", "shell", "am", "start", "-n", mainActivity) }
+    }
+}
+
+tasks.register("deployRelease") {
+    dependsOn("installRelease")
+    doLast {
+        exec { commandLine("adb", "shell", "am", "start", "-n", mainActivity) }
+    }
 }

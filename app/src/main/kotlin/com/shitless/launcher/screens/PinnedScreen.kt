@@ -12,7 +12,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -23,6 +25,8 @@ import androidx.compose.ui.unit.Dp
 import com.shitless.launcher.AppInfo
 import com.shitless.launcher.DesignTokens
 import com.shitless.launcher.components.AppRow
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
 
 @Composable
 fun PinnedScreen(
@@ -30,11 +34,18 @@ fun PinnedScreen(
     onAppClick: (String) -> Unit,
     onAppLongClick: (String) -> Unit,
     onSearchClick: () -> Unit,
+    onReorder: (from: Int, to: Int) -> Unit,
     time: String,
     battery: String,
     topPadding: Dp,
     bottomPadding: Dp,
 ) {
+    val lazyListState = rememberLazyListState()
+    val reorderState =
+        rememberReorderableLazyListState(lazyListState) { from, to ->
+            onReorder(from.index, to.index)
+        }
+
     Column(
         modifier =
             Modifier
@@ -68,13 +79,30 @@ fun PinnedScreen(
                 )
             }
         } else {
-            LazyColumn(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(state = lazyListState, modifier = Modifier.fillMaxSize()) {
                 items(apps, key = { it.packageName }) { app ->
-                    AppRow(
-                        app = app,
-                        onClick = { onAppClick(app.packageName) },
-                        onLongClick = { onAppLongClick(app.packageName) },
-                    )
+                    ReorderableItem(reorderState, key = app.packageName) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            AppRow(
+                                app = app,
+                                onClick = { onAppClick(app.packageName) },
+                                onLongClick = { onAppLongClick(app.packageName) },
+                                modifier = Modifier.weight(1f),
+                            )
+                            Icon(
+                                imageVector = Icons.Default.Menu,
+                                contentDescription = "Drag to reorder",
+                                tint = DesignTokens.Colors.Secondary,
+                                modifier =
+                                    Modifier
+                                        .draggableHandle()
+                                        .padding(DesignTokens.Spacing.Medium),
+                            )
+                        }
+                    }
                 }
             }
         }

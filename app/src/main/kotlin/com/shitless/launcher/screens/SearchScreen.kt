@@ -30,7 +30,7 @@ import com.shitless.launcher.components.formatDuration
 @Composable
 fun SearchScreen(
     apps: List<AppInfo>,
-    pinnedPackages: Set<String>,
+    pinnedPackages: List<String>,
     query: String,
     hasUsagePermission: Boolean,
     totalDurationMs: Long,
