@@ -1,4 +1,4 @@
-package com.example.launcher
+package com.shitless.launcher
 
 import android.app.AppOpsManager
 import android.app.Application

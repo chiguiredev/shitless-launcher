@@ -15,7 +15,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ./gradlew installDebug
 
 # Build + install + launch in one step
-./gradlew installDebug && adb shell am start -n com.example.launcher/.HomeActivity
+./gradlew installDebug && adb shell am start -n com.shitless.launcher/.HomeActivity
 ```
 
 Requires Android SDK with `ANDROID_HOME` set (or `local.properties` with `sdk.dir`).

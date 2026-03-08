@@ -16,11 +16,11 @@ val keystoreProps =
 fun resolveKeystorePath(value: Any?): File? = (value as? String)?.replace("~", System.getProperty("user.home"))?.let { file(it) }
 
 android {
-    namespace = "com.example.launcher"
+    namespace = "com.shitless.launcher"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.example.launcher"
+        applicationId = "com.shitless.launcher"
         minSdk = 26
         targetSdk = 35
         versionCode = 1

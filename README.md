@@ -34,10 +34,10 @@ No Android Studio required.
 ```bash
 ./gradlew assembleDebug          # → app/build/outputs/apk/debug/app-debug.apk
 ./gradlew installDebug           # build + install on connected device/emulator
-adb shell am start -n com.example.launcher/.HomeActivity  # launch
+adb shell am start -n com.shitless.launcher/.HomeActivity  # launch
 ```
 
-To uninstall: `adb uninstall com.example.launcher`
+To uninstall: `adb uninstall com.shitless.launcher`
 
 ## Set as Default Launcher
 
