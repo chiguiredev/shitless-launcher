@@ -41,10 +41,10 @@ To uninstall: `adb uninstall com.shitless.launcher`
 
 ## Set as Default Launcher
 
-After installing, press **Home**. Android will prompt you to pick a home app —
-choose **Shitless Launcher → Always**.
+After installing, press Home. Android will prompt you to pick a home app —
+choose Shitless Launcher → Always.
 
-To revert: *Settings → Apps → Default apps → Home app*.
+To revert: Settings → Apps → Default apps → Home app.
 
 ## Project Structure
 

@@ -1,86 +1,53 @@
-# Shitless Launcher — Feature Spec
+# Shitless Launcher — Spec
 
-Shitless Launcher is a minimalist Android home screen replacement. It shows all your installed apps in a single scrollable list, ordered by how much you've used them today. No widgets, no folders, no distractions.
-
----
+Minimalist Android home screen replacement. One scrollable list of all installed apps, ordered by how long you've used them today.
 
 ## Screen Layout
 
-The screen has four sections stacked vertically:
+From top to bottom:
+1. Header — current time (left) and battery % (right)
+2. Search bar — filters the app list in real time
+3. Total screen time — sum of all app usage today
+4. App list — scrollable, one app per row
 
-1. **Header row** — time on the left, battery percentage on the right
-2. **Search bar** — text field for filtering the app list
-3. **Total screen time** — sum of all app usage today
-4. **App list** — scrollable list of every installed app
+Each app row shows the app name and time used today (`00h 00m 00s`).
 
----
+## Sorting
 
-## Features
+Apps are sorted by today's screen time, descending. Ties sort alphabetically (stable).
 
-### App List
+## Launching
 
-- Every launchable app installed on the device appears in the list
-- Sorted by screen time today, most-used first; apps with equal usage sort alphabetically
-- Each row shows:
-  - App icon
-  - App name
-  - Time used today in `HH:MM:SS` format (e.g. `00h 12m 03s`)
-- When you return to the launcher from an app, the list automatically scrolls back to the top
+Tap a row to open the app. On return to the launcher, the list scrolls back to the top.
 
-### Launching an App
+## Search
 
-- Tap any app row to open it
+- Filters the list in real time, case-insensitive
+- Back with text typed → clears the search
+- Back with empty search → scrolls list to top
 
-### Search
+## Header
 
-- Type in the search bar to filter the list in real time (case-insensitive)
-- Pressing Back when something is typed clears the search and shows the full list
-- Pressing Back when the search is empty scrolls the list back to the top
+- Time: 24-hour `HH:MM`, updates at the start of each new minute
+- Battery: current percentage, updates on `ACTION_BATTERY_CHANGED`
 
-### Time Display
+## Fullscreen
 
-- The current time is shown in the top-left corner in 24-hour format: `HH:MM`
-- Updates automatically at the start of each new minute
+- Status bar is hidden; the launcher header replaces it
+- Navigation bar is hidden by default; swipe up from the bottom edge to reveal it transiently
 
-### Battery Display
+## Usage Stats
 
-- The current battery percentage is shown in the top-right corner (e.g. `85%`)
-- Updates whenever the battery level changes
+- Screen time is read from `UsageStatsManager` using the system's aggregated stats
+- Opens are counted from `UsageEvents` using reference counting (navigating between activities within the same app does not inflate the count)
+- The currently active app (resumed but not yet paused) has its live session added on top of the aggregated total
+- Stats cover from midnight to now; they reset automatically each day
+- Stats are refreshed every time the launcher resumes
 
-### Fullscreen Mode
+## Usage Access Permission
 
-- The system status bar is hidden — the launcher's own header shows time and battery instead
-- The navigation bar is also hidden by default
-- Swipe up from the bottom edge of the screen to temporarily reveal the navigation bar
+Requires the Usage Access special permission (`OPSTR_GET_USAGE_STATS`).
 
-### Daily Usage Stats
-
-- Screen time shown in the app list reflects today only
-- Stats reset automatically at midnight
-- The sort order updates throughout the day as you use apps
-- Total screen time across all apps is shown above the app list
-
----
-
-## Permissions
-
-### Usage Access (required)
-
-Shitless Launcher needs the **Usage Access** permission to read how long you've spent in each app.
-
-- If this permission hasn't been granted, the app list is replaced with a prompt: *"Usage access required"*
-- Tap **Open Settings** to go to the Usage Access settings screen and grant permission
-- Return to the launcher and it will automatically detect the change
-
----
-
-## Visual Design
-
-| Element | Value |
-|---|---|
-| Background | Black |
-| Primary text | White |
-| Stats text | Gray |
-| Time & battery size | Large |
-| App name size | Medium |
-| Stats size | Small |
+- Checked on init and every resume
+- If not granted: the app list is replaced with a "Usage access required" message and an Open Settings button that deep-links to the Usage Access settings screen
+- Permission is detected automatically when the user returns to the launcher
