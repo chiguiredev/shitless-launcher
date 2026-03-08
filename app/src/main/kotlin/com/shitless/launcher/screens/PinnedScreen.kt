@@ -10,11 +10,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -34,6 +37,8 @@ fun PinnedScreen(
     onAppClick: (String) -> Unit,
     onAppLongClick: (String) -> Unit,
     onSearchClick: () -> Unit,
+    onPhoneClick: () -> Unit,
+    onCameraClick: () -> Unit,
     onReorder: (from: Int, to: Int) -> Unit,
     time: String,
     battery: String,
@@ -50,7 +55,7 @@ fun PinnedScreen(
         modifier =
             Modifier
                 .fillMaxSize()
-                .padding(top = topPadding, bottom = bottomPadding)
+                .padding(top = topPadding)
                 .padding(horizontal = DesignTokens.Spacing.Large),
     ) {
         Spacer(Modifier.height(DesignTokens.Spacing.Large))
@@ -63,15 +68,11 @@ fun PinnedScreen(
             Text(text = battery, color = DesignTokens.Colors.Primary, fontSize = DesignTokens.FontSize.Large)
         }
         Spacer(Modifier.height(DesignTokens.Spacing.Large))
-        Icon(
-            imageVector = Icons.Default.Search,
-            contentDescription = "Search",
-            tint = DesignTokens.Colors.Primary,
-            modifier = Modifier.clickable(onClick = onSearchClick),
-        )
-        Spacer(Modifier.height(DesignTokens.Spacing.Large))
         if (apps.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                contentAlignment = Alignment.Center,
+            ) {
                 Text(
                     text = "Long press an app to pin it",
                     color = DesignTokens.Colors.Secondary,
@@ -79,7 +80,7 @@ fun PinnedScreen(
                 )
             }
         } else {
-            LazyColumn(state = lazyListState, modifier = Modifier.fillMaxSize()) {
+            LazyColumn(state = lazyListState, modifier = Modifier.weight(1f).fillMaxWidth()) {
                 items(apps, key = { it.packageName }) { app ->
                     ReorderableItem(reorderState, key = app.packageName) {
                         Row(
@@ -105,6 +106,46 @@ fun PinnedScreen(
                     }
                 }
             }
+        }
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = bottomPadding + DesignTokens.Spacing.XLarge)
+                    .padding(vertical = DesignTokens.Spacing.Large),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = Icons.Default.Phone,
+                contentDescription = "Phone",
+                tint = DesignTokens.Colors.Primary,
+                modifier =
+                    Modifier
+                        .size(DesignTokens.IconSize.Large)
+                        .clickable(onClick = onPhoneClick)
+                        .padding(DesignTokens.Spacing.Small),
+            )
+            Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = "Search",
+                tint = DesignTokens.Colors.Primary,
+                modifier =
+                    Modifier
+                        .size(DesignTokens.IconSize.Large)
+                        .clickable(onClick = onSearchClick)
+                        .padding(DesignTokens.Spacing.Small),
+            )
+            Icon(
+                imageVector = Icons.Default.CameraAlt,
+                contentDescription = "Camera",
+                tint = DesignTokens.Colors.Primary,
+                modifier =
+                    Modifier
+                        .size(DesignTokens.IconSize.Large)
+                        .clickable(onClick = onCameraClick)
+                        .padding(DesignTokens.Spacing.Small),
+            )
         }
     }
 }

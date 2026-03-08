@@ -22,5 +22,10 @@ object DesignTokens {
         val Small = 12.dp
         val Medium = 14.dp
         val Large = 20.dp
+        val XLarge = 40.dp
+    }
+
+    object IconSize {
+        val Large = 48.dp
     }
 }

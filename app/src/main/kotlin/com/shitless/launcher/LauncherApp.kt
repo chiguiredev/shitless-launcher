@@ -137,6 +137,17 @@ fun LauncherApp(vm: LauncherViewModel = viewModel()) {
                 onAppClick = { vm.launch(it) },
                 onAppLongClick = { vm.togglePin(it) },
                 onSearchClick = { showSearch = true },
+                onPhoneClick = {
+                    context.startActivity(
+                        Intent(Intent.ACTION_DIAL).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                    )
+                },
+                onCameraClick = {
+                    context.startActivity(
+                        Intent("android.media.action.STILL_IMAGE_CAMERA")
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                    )
+                },
                 onReorder = { from, to -> vm.reorderPinnedApps(from, to) },
                 time = time,
                 battery = battery,
