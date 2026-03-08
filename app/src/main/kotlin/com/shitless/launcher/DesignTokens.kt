@@ -13,14 +13,14 @@ object DesignTokens {
     }
 
     object FontSize {
-        val Large = 20.sp
-        val Medium = 16.sp
-        val Small = 12.sp
+        val Large = 22.sp
+        val Medium = 18.sp
+        val Small = 14.sp
     }
 
     object Spacing {
-        val Small = 8.dp
-        val Medium = 10.dp
-        val Large = 16.dp
+        val Small = 12.dp
+        val Medium = 14.dp
+        val Large = 20.dp
     }
 }

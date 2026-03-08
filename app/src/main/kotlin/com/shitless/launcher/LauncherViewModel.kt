@@ -26,8 +26,10 @@ import java.time.ZoneId
 
 class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     private val pm = app.packageManager
+
     private val usageStatsManager =
         app.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+
     private val appOpsManager =
         app.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
 
@@ -35,6 +37,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     val returnedFromApp: SharedFlow<Unit> = _returnedFromApp.asSharedFlow()
 
     private val apps = MutableStateFlow<List<AppInfo>>(emptyList())
+
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
 
@@ -59,6 +62,22 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
             base.map { app ->
                 app.copy(durationMs = dailyMap[app.packageName] ?: 0L)
             }.sortedByDescending { it.durationMs }
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    private val pinnedPrefs = app.getSharedPreferences("launcher_pinned", Context.MODE_PRIVATE)
+
+    private val _pinnedPackages =
+        MutableStateFlow<Set<String>>(
+            pinnedPrefs.getStringSet("pinned", emptySet()) ?: emptySet(),
+        )
+    val pinnedPackages: StateFlow<Set<String>> = _pinnedPackages.asStateFlow()
+
+    val pinnedApps: StateFlow<List<AppInfo>> =
+        combine(apps, _pinnedPackages, daily) { appList, pinned, dailyMap ->
+            appList
+                .filter { it.packageName in pinned }
+                .map { app -> app.copy(durationMs = dailyMap[app.packageName] ?: 0L) }
+                .sortedBy { it.label.lowercase() }
         }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     private var appWasLaunched = false
@@ -146,6 +165,13 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setQuery(newQuery: String) {
         _query.value = newQuery
+    }
+
+    fun togglePin(packageName: String) {
+        val current = _pinnedPackages.value.toMutableSet()
+        if (packageName in current) current.remove(packageName) else current.add(packageName)
+        _pinnedPackages.value = current
+        pinnedPrefs.edit().putStringSet("pinned", current).apply()
     }
 
     fun launch(packageName: String) {
