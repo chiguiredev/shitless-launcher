@@ -11,6 +11,9 @@ val keystoreProps = Properties().also { props ->
     if (f.exists()) f.inputStream().use { props.load(it) }
 }
 
+fun resolveKeystorePath(value: Any?): File? =
+    (value as? String)?.replace("~", System.getProperty("user.home"))?.let { file(it) }
+
 android {
     namespace = "com.example.launcher"
     compileSdk = 35
@@ -25,7 +28,7 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = keystoreProps["storeFile"]?.let { file(it as String) }
+            storeFile = resolveKeystorePath(keystoreProps["storeFile"])
             storePassword = keystoreProps["storePassword"] as String?
             keyAlias = keystoreProps["keyAlias"] as String?
             keyPassword = keystoreProps["keyPassword"] as String?
