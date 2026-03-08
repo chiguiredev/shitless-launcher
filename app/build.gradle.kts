@@ -4,15 +4,16 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.ktlint)
 }
 
-val keystoreProps = Properties().also { props ->
-    val f = rootProject.file("keystore.properties")
-    if (f.exists()) f.inputStream().use { props.load(it) }
-}
+val keystoreProps =
+    Properties().also { props ->
+        val f = rootProject.file("keystore.properties")
+        if (f.exists()) f.inputStream().use { props.load(it) }
+    }
 
-fun resolveKeystorePath(value: Any?): File? =
-    (value as? String)?.replace("~", System.getProperty("user.home"))?.let { file(it) }
+fun resolveKeystorePath(value: Any?): File? = (value as? String)?.replace("~", System.getProperty("user.home"))?.let { file(it) }
 
 android {
     namespace = "com.example.launcher"

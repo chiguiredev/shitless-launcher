@@ -1,7 +1,7 @@
 package com.example.launcher
 
-import android.app.Application
 import android.app.AppOpsManager
+import android.app.Application
 import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
 import android.content.Context
@@ -25,7 +25,6 @@ import java.time.LocalDate
 import java.time.ZoneId
 
 class LauncherViewModel(app: Application) : AndroidViewModel(app) {
-
     private val pm = app.packageManager
     private val usageStatsManager =
         app.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
@@ -35,28 +34,34 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     private val _returnedFromApp = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val returnedFromApp: SharedFlow<Unit> = _returnedFromApp.asSharedFlow()
 
-    private val _apps = MutableStateFlow<List<AppInfo>>(emptyList())
+    private val apps = MutableStateFlow<List<AppInfo>>(emptyList())
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
 
     // daily stats: packageName -> (opens, durationMs)
-    private val _daily = MutableStateFlow<Map<String, Pair<Int, Long>>>(emptyMap())
+    private val daily = MutableStateFlow<Map<String, Pair<Int, Long>>>(emptyMap())
 
     private val _hasUsagePermission = MutableStateFlow(false)
     val hasUsagePermission: StateFlow<Boolean> = _hasUsagePermission.asStateFlow()
 
-    val totalDurationMs: StateFlow<Long> = _daily
-        .map { daily -> daily.values.sumOf { it.second } }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, 0L)
+    val totalDurationMs: StateFlow<Long> =
+        daily
+            .map { d -> d.values.sumOf { it.second } }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, 0L)
 
-    val filtered: StateFlow<List<AppInfo>> = combine(_apps, _query, _daily) { apps, query, daily ->
-        val base = if (query.trim().isEmpty()) apps
-                   else apps.filter { it.label.lowercase().contains(query.trim().lowercase()) }
-        base.map { app ->
-            val duration = daily[app.packageName]?.second ?: 0L
-            app.copy(durationMs = duration)
-        }.sortedByDescending { it.durationMs }
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    val filtered: StateFlow<List<AppInfo>> =
+        combine(apps, _query, daily) { appList, query, dailyMap ->
+            val base =
+                if (query.trim().isEmpty()) {
+                    appList
+                } else {
+                    appList.filter { it.label.lowercase().contains(query.trim().lowercase()) }
+                }
+            base.map { app ->
+                val duration = dailyMap[app.packageName]?.second ?: 0L
+                app.copy(durationMs = duration)
+            }.sortedByDescending { it.durationMs }
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     private var lastLaunchedPackage: String? = null
 
@@ -69,11 +74,12 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     @Suppress("DEPRECATION")
     fun checkUsagePermission() {
         val uid = getApplication<Application>().applicationInfo.uid
-        val mode = appOpsManager.checkOpNoThrow(
-            AppOpsManager.OPSTR_GET_USAGE_STATS,
-            uid,
-            getApplication<Application>().packageName,
-        )
+        val mode =
+            appOpsManager.checkOpNoThrow(
+                AppOpsManager.OPSTR_GET_USAGE_STATS,
+                uid,
+                getApplication<Application>().packageName,
+            )
         _hasUsagePermission.value = (mode == AppOpsManager.MODE_ALLOWED)
     }
 
@@ -81,10 +87,11 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         if (!_hasUsagePermission.value) return
         viewModelScope.launch(Dispatchers.IO) {
             val now = System.currentTimeMillis()
-            val startOfDay = LocalDate.now()
-                .atStartOfDay(ZoneId.systemDefault())
-                .toInstant()
-                .toEpochMilli()
+            val startOfDay =
+                LocalDate.now()
+                    .atStartOfDay(ZoneId.systemDefault())
+                    .toInstant()
+                    .toEpochMilli()
             // Count opens from the event log using reference counting so that navigating
             // between activities within the same app doesn't inflate the count.
             // Also track last RESUMED / PAUSED timestamps to identify the one package
@@ -122,10 +129,11 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
             // The currently active package is the one whose last RESUMED is more recent
             // than its last PAUSED. Only one app can be in the foreground at a time, so
             // take the candidate with the latest RESUMED timestamp.
-            val activePackage = lastResumedAt
-                .filter { (pkg, resumedTs) -> resumedTs > (lastPausedAt[pkg] ?: 0L) }
-                .maxByOrNull { it.value }
-                ?.key
+            val activePackage =
+                lastResumedAt
+                    .filter { (pkg, resumedTs) -> resumedTs > (lastPausedAt[pkg] ?: 0L) }
+                    .maxByOrNull { it.value }
+                    ?.key
 
             // Use system aggregation for all completed-session durations.
             // Add the live (unfinished) session only for the one currently-active package.
@@ -140,25 +148,27 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
                 }
                 if (opens > 0 || duration > 0) dailyMap[pkg] = opens to duration
             }
-            _daily.value = dailyMap
+            daily.value = dailyMap
         }
     }
 
     private fun loadApps() {
         viewModelScope.launch(Dispatchers.IO) {
-            val intent = Intent(Intent.ACTION_MAIN).apply {
-                addCategory(Intent.CATEGORY_LAUNCHER)
-            }
-            val resolved: List<ResolveInfo> = pm.queryIntentActivities(intent, 0)
-            _apps.value = resolved
-                .map { ri ->
-                    AppInfo(
-                        label = ri.loadLabel(pm).toString(),
-                        packageName = ri.activityInfo.packageName,
-                        icon = ri.loadIcon(pm),
-                    )
+            val intent =
+                Intent(Intent.ACTION_MAIN).apply {
+                    addCategory(Intent.CATEGORY_LAUNCHER)
                 }
-                .sortedBy { it.label.lowercase() }
+            val resolved: List<ResolveInfo> = pm.queryIntentActivities(intent, 0)
+            apps.value =
+                resolved
+                    .map { ri ->
+                        AppInfo(
+                            label = ri.loadLabel(pm).toString(),
+                            packageName = ri.activityInfo.packageName,
+                            icon = ri.loadIcon(pm),
+                        )
+                    }
+                    .sortedBy { it.label.lowercase() }
         }
     }
 

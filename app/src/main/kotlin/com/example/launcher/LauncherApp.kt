@@ -8,13 +8,37 @@ import android.os.BatteryManager
 import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -39,8 +63,11 @@ fun LauncherApp(vm: LauncherViewModel = viewModel()) {
     val context = LocalContext.current
 
     BackHandler {
-        if (query.isNotEmpty()) vm.setQuery("")
-        else coroutineScope.launch { listState.scrollToItem(0) }
+        if (query.isNotEmpty()) {
+            vm.setQuery("")
+        } else {
+            coroutineScope.launch { listState.scrollToItem(0) }
+        }
     }
 
     val timeFormatter = remember { DateTimeFormatter.ofPattern("HH:mm") }
@@ -54,13 +81,17 @@ fun LauncherApp(vm: LauncherViewModel = viewModel()) {
 
     var battery by remember { mutableStateOf("") }
     DisposableEffect(Unit) {
-        val receiver = object : BroadcastReceiver() {
-            override fun onReceive(ctx: Context, intent: Intent) {
-                val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
-                val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
-                if (level >= 0 && scale > 0) battery = "${level * 100 / scale}%"
+        val receiver =
+            object : BroadcastReceiver() {
+                override fun onReceive(
+                    ctx: Context,
+                    intent: Intent,
+                ) {
+                    val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+                    val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
+                    if (level >= 0 && scale > 0) battery = "${level * 100 / scale}%"
+                }
             }
-        }
         context.registerReceiver(receiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
         onDispose { context.unregisterReceiver(receiver) }
     }
@@ -77,14 +108,16 @@ fun LauncherApp(vm: LauncherViewModel = viewModel()) {
     var topPadding by remember { mutableStateOf(0.dp) }
     var bottomPadding by remember { mutableStateOf(0.dp) }
     LaunchedEffect(Unit) {
-        topPadding = with(density) {
-            snapshotFlow { safeDrawingInsets.getTop(density) }.first().toDp()
-        }
+        topPadding =
+            with(density) {
+                snapshotFlow { safeDrawingInsets.getTop(density) }.first().toDp()
+            }
     }
     LaunchedEffect(Unit) {
-        bottomPadding = with(density) {
-            snapshotFlow { navBarInsets.getBottom(density) }.first().toDp()
-        }
+        bottomPadding =
+            with(density) {
+                snapshotFlow { navBarInsets.getBottom(density) }.first().toDp()
+            }
     }
 
     Surface(
@@ -92,10 +125,11 @@ fun LauncherApp(vm: LauncherViewModel = viewModel()) {
         color = DesignTokens.Colors.Background,
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(top = topPadding, bottom = bottomPadding)
-                .padding(horizontal = DesignTokens.Spacing.Large),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(top = topPadding, bottom = bottomPadding)
+                    .padding(horizontal = DesignTokens.Spacing.Large),
         ) {
             Spacer(Modifier.height(DesignTokens.Spacing.Large))
 
@@ -116,13 +150,14 @@ fun LauncherApp(vm: LauncherViewModel = viewModel()) {
                 placeholder = { Text("Search apps", color = DesignTokens.Colors.Secondary) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = DesignTokens.Colors.Primary,
-                    unfocusedTextColor = DesignTokens.Colors.Primary,
-                    focusedBorderColor = DesignTokens.Colors.Border,
-                    unfocusedBorderColor = DesignTokens.Colors.Border,
-                    cursorColor = DesignTokens.Colors.Primary,
-                ),
+                colors =
+                    OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = DesignTokens.Colors.Primary,
+                        unfocusedTextColor = DesignTokens.Colors.Primary,
+                        focusedBorderColor = DesignTokens.Colors.Border,
+                        unfocusedBorderColor = DesignTokens.Colors.Border,
+                        cursorColor = DesignTokens.Colors.Primary,
+                    ),
                 modifier = Modifier.fillMaxWidth(),
             )
 
@@ -156,7 +191,7 @@ fun LauncherApp(vm: LauncherViewModel = viewModel()) {
                             onClick = {
                                 context.startActivity(
                                     Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
-                                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                                 )
                             },
                         ) {
@@ -170,12 +205,16 @@ fun LauncherApp(vm: LauncherViewModel = viewModel()) {
 }
 
 @Composable
-private fun AppRow(app: AppInfo, onClick: () -> Unit) {
+private fun AppRow(
+    app: AppInfo,
+    onClick: () -> Unit,
+) {
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = DesignTokens.Spacing.Medium),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(vertical = DesignTokens.Spacing.Medium),
     ) {
         Text(
             text = app.label,
