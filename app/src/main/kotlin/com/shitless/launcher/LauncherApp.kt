@@ -7,34 +7,12 @@ import android.content.IntentFilter
 import android.os.BatteryManager
 import android.provider.Settings
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Button
-import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -45,14 +23,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.shitless.launcher.screens.PinnedScreen
+import com.shitless.launcher.screens.SearchScreen
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -167,191 +144,4 @@ fun LauncherApp(vm: LauncherViewModel = viewModel()) {
             )
         }
     }
-}
-
-@Composable
-private fun PinnedScreen(
-    apps: List<AppInfo>,
-    onAppClick: (String) -> Unit,
-    onAppLongClick: (String) -> Unit,
-    onSearchClick: () -> Unit,
-    time: String,
-    battery: String,
-    topPadding: Dp,
-    bottomPadding: Dp,
-) {
-    Column(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .padding(top = topPadding, bottom = bottomPadding)
-                .padding(horizontal = DesignTokens.Spacing.Large),
-    ) {
-        Spacer(Modifier.height(DesignTokens.Spacing.Large))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(text = time, color = DesignTokens.Colors.Primary, fontSize = DesignTokens.FontSize.Large)
-            Text(text = battery, color = DesignTokens.Colors.Primary, fontSize = DesignTokens.FontSize.Large)
-        }
-        Spacer(Modifier.height(DesignTokens.Spacing.Large))
-        Icon(
-            imageVector = Icons.Default.Search,
-            contentDescription = "Search",
-            tint = DesignTokens.Colors.Primary,
-            modifier = Modifier.clickable(onClick = onSearchClick),
-        )
-        Spacer(Modifier.height(DesignTokens.Spacing.Large))
-        if (apps.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(
-                    text = "Long press an app to pin it",
-                    color = DesignTokens.Colors.Secondary,
-                    fontSize = DesignTokens.FontSize.Small,
-                )
-            }
-        } else {
-            LazyColumn(modifier = Modifier.fillMaxSize()) {
-                items(apps, key = { it.packageName }) { app ->
-                    AppRow(
-                        app = app,
-                        onClick = { onAppClick(app.packageName) },
-                        onLongClick = { onAppLongClick(app.packageName) },
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SearchScreen(
-    apps: List<AppInfo>,
-    pinnedPackages: Set<String>,
-    query: String,
-    hasUsagePermission: Boolean,
-    totalDurationMs: Long,
-    listState: LazyListState,
-    time: String,
-    battery: String,
-    topPadding: Dp,
-    bottomPadding: Dp,
-    onQueryChange: (String) -> Unit,
-    onAppClick: (String) -> Unit,
-    onAppLongClick: (String) -> Unit,
-    onOpenSettings: () -> Unit,
-) {
-    Column(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .padding(top = topPadding, bottom = bottomPadding)
-                .padding(horizontal = DesignTokens.Spacing.Large),
-    ) {
-        Spacer(Modifier.height(DesignTokens.Spacing.Large))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(text = time, color = DesignTokens.Colors.Primary, fontSize = DesignTokens.FontSize.Large)
-            Text(text = battery, color = DesignTokens.Colors.Primary, fontSize = DesignTokens.FontSize.Large)
-        }
-
-        Spacer(Modifier.height(DesignTokens.Spacing.Large))
-
-        OutlinedTextField(
-            value = query,
-            onValueChange = onQueryChange,
-            placeholder = { Text("Search apps", color = DesignTokens.Colors.Secondary) },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-            colors =
-                OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = DesignTokens.Colors.Primary,
-                    unfocusedTextColor = DesignTokens.Colors.Primary,
-                    focusedBorderColor = DesignTokens.Colors.Border,
-                    unfocusedBorderColor = DesignTokens.Colors.Border,
-                    cursorColor = DesignTokens.Colors.Primary,
-                ),
-            modifier = Modifier.fillMaxWidth(),
-        )
-
-        Spacer(Modifier.height(DesignTokens.Spacing.Large))
-
-        if (hasUsagePermission) {
-            Text(
-                text = "Total time: ${formatDuration(totalDurationMs)}",
-                color = DesignTokens.Colors.Primary,
-                fontSize = DesignTokens.FontSize.Large,
-            )
-            Spacer(Modifier.height(DesignTokens.Spacing.Small))
-            LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-                items(apps, key = { it.packageName }) { app ->
-                    AppRow(
-                        app = app,
-                        isPinned = app.packageName in pinnedPackages,
-                        onClick = { onAppClick(app.packageName) },
-                        onLongClick = { onAppLongClick(app.packageName) },
-                    )
-                }
-            }
-        } else {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center,
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = "Usage access required",
-                        color = DesignTokens.Colors.Primary,
-                        fontSize = DesignTokens.FontSize.Medium,
-                    )
-                    Spacer(Modifier.height(DesignTokens.Spacing.Large))
-                    Button(onClick = onOpenSettings) {
-                        Text("Open Settings")
-                    }
-                }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun AppRow(
-    app: AppInfo,
-    onClick: () -> Unit,
-    onLongClick: () -> Unit = {},
-    isPinned: Boolean = false,
-) {
-    Column(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .combinedClickable(onClick = onClick, onLongClick = onLongClick)
-                .padding(vertical = DesignTokens.Spacing.Medium),
-    ) {
-        Text(
-            text = if (isPinned) "• ${app.label}" else app.label,
-            color = DesignTokens.Colors.Primary,
-            fontSize = DesignTokens.FontSize.Medium,
-        )
-        Text(
-            text = formatDuration(app.durationMs),
-            color = DesignTokens.Colors.Secondary,
-            fontSize = DesignTokens.FontSize.Small,
-        )
-    }
-}
-
-private fun formatDuration(ms: Long): String {
-    val totalSecs = ms / 1000
-    val hours = totalSecs / 3600
-    val minutes = (totalSecs % 3600) / 60
-    val seconds = totalSecs % 60
-    return "%02dh %02dm %02ds".format(hours, minutes, seconds)
 }
